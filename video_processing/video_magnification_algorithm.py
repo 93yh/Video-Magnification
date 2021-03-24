@@ -100,19 +100,19 @@ class Video_Magnification:
         print(dimension_reduced_series)
         print(dimension_reduced_series.shape)
         print(pca.components_[0].shape)
-        # plt.imshow(pca.components_[2].reshape(self.frames_heigh, self.frames_width), 'gray')
+        return dimension_reduced_series, pca.components_
 
     def apply_BSS(self):
         pass
 
-    def create_video_from_frames(self):
+    def create_video_from_frames(self, name, frames=None):
+        if not frames:
+            frames = self.video.frames
         print('Creating video from the frames\n')
         height, width = self.video.frames[0].shape
         size = (width, height)
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter('frames.avi', fourcc, 20.0, size, 0)
-        out2 = cv2.VideoWriter('magnitude_spectrum.avi', fourcc, 20.0, size, 0)
-        for i in range(len(self.video.frames)):
-            out.write(self.video.frames[i])
-            out2.write(self.magnitude_frames[i])
+        out = cv2.VideoWriter('%s' % name, fourcc, 20.0, size, 0)
+        for i in range(len(frames)):
+            out.write(frames[i])
         out.release()
