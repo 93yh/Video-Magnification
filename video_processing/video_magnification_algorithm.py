@@ -2,6 +2,9 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
+from video_processing.complexity_pursuit_functions import return_mask
+from scipy.signal import lfilter
+from scipy import linalg
 
 
 class Video_Magnification:
@@ -94,25 +97,33 @@ class Video_Magnification:
         plt.imsave('phase_pos_pre_processing.jpeg', frame, cmap='gray')
 
     def apply_PCA(self):
-        print('Apllying PCA in the phase series')
-        pca = PCA()
+        print('Apllying PCA in the phase series\n')
+        pca = PCA(n_components=4)
         dimension_reduced_series = pca.fit_transform(self.video.phase_serie)
-        print(dimension_reduced_series)
-        print(dimension_reduced_series.shape)
-        print(pca.components_[0].shape)
         return dimension_reduced_series, pca.components_
 
-    def apply_BSS(self):
-        pass
+    def apply_BSS(self, principal_components):
+        print('Applying BSS')
+        short_mask = return_mask(1.0, 8, 500)
+        long_mask = return_mask(900000.0, 8, 500)
+        print('Calculando filtros')
+        short_filter = lfilter(short_mask, 1,  principal_components)
+        long_filter = lfilter(long_mask, 1, principal_components)
+        print('Calculando matrizes de covariância')
+        short_cov = np.cov(short_filter)
+        long_cov = np.cov(long_filter)
+        print('Calculando Auto Valores e Auto Vetores')
+        eigen_values, eigen_vectors = linalg.eig(short_cov, long_cov)
+        return eigen_values, eigen_vectors
 
     def create_video_from_frames(self, name, frames=None):
-        if not frames:
-            frames = self.video.frames
-        print('Creating video from the frames\n')
-        height, width = self.video.frames[0].shape
-        size = (width, height)
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter('%s' % name, fourcc, 20.0, size, 0)
-        for i in range(len(frames)):
-            out.write(frames[i])
-        out.release()
+            if not frames:
+                frames = self.video.frames
+            print('Creating video from the frames\n')
+            height, width = self.video.frames[0].shape
+            size = (width, height)
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')
+            out = cv2.VideoWriter('%s' % name, fourcc, 20.0, size, 0)
+            for i in range(len(frames)):
+                out.write(frames[i])
+            out.release()
