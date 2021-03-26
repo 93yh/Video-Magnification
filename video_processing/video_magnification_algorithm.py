@@ -79,12 +79,11 @@ class Video_Magnification:
         columns_deleted = []
         height = self.video.phase_serie.shape[0]
         for pixel in range(len(otsu)):
-            if otsu[pixel] <= 0:
+            if otsu[pixel] == 0:
                 columns_deleted.append(pixel)
         for column in columns_deleted:
-            self.video.phase_serie[:, column] = np.full(height, 125, np.uint8)
-        frame = self.video.phase_serie[0, :].reshape(self.frames_heigh, self.frames_width)
-        plt.imsave('phase_pos_pre_processing.jpeg', frame.real, cmap='gray')
+            self.video.phase_serie[:, column] = np.full(height, 0, np.uint8)
+        plt.imsave('phase_pos_pre_processing.jpeg', frame, cmap='gray')
 
     def apply_PCA(self):
         print('Apllying PCA in the phase series\n')
