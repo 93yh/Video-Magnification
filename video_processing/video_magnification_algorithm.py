@@ -82,6 +82,8 @@ class Video_Magnification:
 
     def remove_background2(self):
         print("removing background of the video using the time series\n")
+        frame = self.video.phase_serie[0, :].reshape(self.frames_heigh, self.frames_width)
+        plt.imsave('phase_before_pre_processing.jpeg', frame, cmap='gray')
         self.video.phase_serie = self.video.phase_serie[1:, :]
         amplitude_mean = np.mean(self.video.amplitude_serie, axis=0)
         amplitude_mean = np.uint8(np.abs(amplitude_mean))
@@ -92,9 +94,9 @@ class Video_Magnification:
             if otsu[pixel] <= 0:
                 columns_deleted.append(pixel)
         for column in columns_deleted:
-            self.video.phase_serie[:, column] = np.full(height, 255, np.uint8)
+            self.video.phase_serie[:, column] = np.full(height, 125, np.uint8)
         frame = self.video.phase_serie[0, :].reshape(self.frames_heigh, self.frames_width)
-        plt.imsave('phase_pos_pre_processing.jpeg', frame, cmap='gray')
+        plt.imsave('phase_pos_pre_processing.jpeg', frame.real, cmap='gray')
 
     def apply_PCA(self):
         print('Apllying PCA in the phase series\n')
