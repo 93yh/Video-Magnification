@@ -18,7 +18,7 @@ video_magnification.apply_filter()
 video_magnification.create_video_from_frames('magnitude_spectrum.avi', video_magnification.magnitude_frames)
 video_magnification.create_video_from_frames('frames_pos_filtering.avi')
 video_magnification.create_time_series()
-video_magnification.remove_background2()
+video_magnification.remove_background()
 dimension_reduced_series, principal_components = video_magnification.apply_PCA()
 eigen_values, eigen_vectors = video_magnification.apply_BSS(principal_components)
 W = eigen_vectors

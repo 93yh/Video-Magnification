@@ -70,18 +70,6 @@ class Video_Magnification:
 
     def remove_background(self):
         print("removing background of the video using the time series\n")
-        self.video.phase_serie = self.video.phase_serie[1:, :]
-        amplitude_mean = np.mean(self.video.amplitude_serie, axis=0)
-        amplitude_mean = np.uint8(np.abs(amplitude_mean))
-        flag, otsu = cv2.threshold(amplitude_mean, 125, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-        columns_deleted = []
-        for pixel in range(len(otsu)):
-            if otsu[pixel] <= 0:
-                columns_deleted.append(pixel)
-        self.video.phase_serie = np.delete(self.video.phase_serie, columns_deleted, 1)
-
-    def remove_background2(self):
-        print("removing background of the video using the time series\n")
         frame = self.video.phase_serie[0, :].reshape(self.frames_heigh, self.frames_width)
         plt.imsave('phase_before_pre_processing.jpeg', frame, cmap='gray')
         self.video.phase_serie = self.video.phase_serie[1:, :]
