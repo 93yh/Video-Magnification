@@ -72,6 +72,7 @@ class Video_Magnification:
         print("removing background of the video using the time series\n")
         frame = self.video.phase_serie[0, :].reshape(self.frames_heigh, self.frames_width)
         plt.imsave('phase_before_pre_processing.jpeg', frame, cmap='gray')
+        phase_zero = self.video.phase_serie[0, :]
         self.video.phase_serie = self.video.phase_serie[1:, :]
         amplitude_mean = np.mean(self.video.amplitude_serie, axis=0)
         amplitude_mean = np.uint8(np.abs(amplitude_mean))
@@ -84,10 +85,11 @@ class Video_Magnification:
         for column in columns_deleted:
             self.video.phase_serie[:, column] = np.full(height, 0, np.uint8)
         plt.imsave('phase_pos_pre_processing.jpeg', frame, cmap='gray')
+        return phase_zero, amplitude_mean
 
     def apply_PCA(self):
         print('Apllying PCA in the phase series\n')
-        pca = PCA(n_components=4)
+        pca = PCA(n_components=3)
         dimension_reduced_series = pca.fit_transform(self.video.phase_serie)
         return dimension_reduced_series, pca.components_
 
@@ -105,6 +107,16 @@ class Video_Magnification:
         eigen_values, eigen_vectors = linalg.eig(short_cov, long_cov)
         return eigen_values, eigen_vectors
 
+    def video_reconstruction(self, mode_shapes, modal_coordinates, phase_zero):
+        matrix = np.matmul(modal_coordinates.T, mode_shapes.T)
+        matrix = np.insert(matrix, 0, phase_zero, axis=0)
+        result = self.video.amplitude_serie * np.exp(1j * matrix)
+        frame = result[1].reshape(self.frames_heigh, self.frames_width)
+        fft = np.fft.fft2(frame)
+        ifft = np.fft.ifft2(fft)
+        plt.imshow(ifft.imag, 'gray')
+        print(result)
+
     def create_video_from_frames(self, name, frames=None):
             if not frames:
                 frames = self.video.frames
@@ -112,7 +124,7 @@ class Video_Magnification:
             height, width = self.video.frames[0].shape
             size = (width, height)
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
-            out = cv2.VideoWriter('%s' % name, fourcc, 20.0, size, 0)
+            out = cv2.VideoWriter('video_samples/%s' % name, fourcc, 20.0, size, 0)
             for i in range(len(frames)):
                 out.write(frames[i])
             out.release()
