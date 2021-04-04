@@ -5,14 +5,15 @@ from sklearn.decomposition import PCA
 from video_processing.complexity_pursuit_functions import return_mask
 from scipy.signal import lfilter
 from scipy import linalg
+from scipy.signal import hilbert2
 
 
 class Video_Magnification:
     def __init__(self, video):
         self.video = video
-        self.magnitude_frames = []
         self.frames_heigh= video.frames[0].shape[0]
         self.frames_width = video.frames[0].shape[1]
+        self.time_serie = None
         self.filter_shape = []
 
     def standardize_frames(self):
@@ -20,80 +21,30 @@ class Video_Magnification:
         for frame in range(len(self.video.frames)):
             self.video.frames[frame] = cv2.cvtColor(self.video.frames[frame], cv2.COLOR_BGR2GRAY)
 
-    def create_filter(self, ):
-        print('Creating filter for the frames\n')
-        rows, cols = self.video.frames[0].shape
-        center_row, center_col = int(rows / 2), int(cols / 2)
-        low_filter_mask = np.zeros((rows, cols), np.uint8)
-        high_filter_mask = np.ones((rows, cols), np.uint8)
-        low_filter_radius = 180
-        high_filter_radius = 60
-        center = [center_row, center_col]
-        x, y = np.ogrid[: rows, :cols]
-        low_filter_mask_area = (x - center[0]) ** 2 + (y - center[1]) ** 2 <= low_filter_radius * low_filter_radius
-        low_filter_mask[low_filter_mask_area] = 1
-        high_filter_mask_area = (x - center[0]) ** 2 + (y - center[1]) ** 2 <= high_filter_radius * high_filter_radius
-        high_filter_mask[high_filter_mask_area] = 0
-        plt.imsave('filter.jpeg', high_filter_mask * low_filter_mask, cmap='gray')
-        return high_filter_mask * low_filter_mask
-
-    def apply_filter(self):
-        print('Filter process initiated\n')
-        for frame in range(len(self.video.frames)):
-            frame_fft = np.fft.fft2(self.video.frames[frame])
-            frame_shifted = np.fft.fftshift(frame_fft)
-            frame_magnitude = 20 * np.log(np.abs(frame_shifted))
-            frame_magnitude = cv2.normalize(frame_magnitude, None, 255, 0, cv2.NORM_MINMAX, cv2.CV_8UC1)
-            self.magnitude_frames.append(frame_magnitude)
-            filter = self.create_filter()
-            filtered_frame = frame_shifted * filter
-            reverse_shift = np.fft.ifftshift(filtered_frame)
-            reversed_image = np.fft.ifft2(reverse_shift)
-            reversed_image = np.abs(reversed_image)
-            result = cv2.normalize(reversed_image, None, 255, 0, cv2.NORM_MINMAX, cv2.CV_8UC1)
-            self.video.frames[frame] = result
-
     def create_time_series(self):
         print('Creating time series\n')
         pixels_number = self.video.frames[0].shape[0] * self.video.frames[0].shape[1]
-        self.video.phase_serie = np.zeros((len(self.video.frames), pixels_number))
-        self.video.amplitude_serie = np.zeros((len(self.video.frames), pixels_number))
+        self.time_serie = np.zeros((len(self.video.frames), pixels_number))
         for frame in range(len(self.video.frames)):
-            fft_frame = np.fft.fft2(self.video.frames[frame])
-            frame_shifted = np.fft.fftshift(fft_frame)
-            frame_phase = np.angle(frame_shifted)
-            frame_amplitude = 20 * np.log(np.abs(frame_shifted))
-            phase_vector = frame_phase.ravel()
-            amplitude_vector = frame_amplitude.ravel()
-            self.video.phase_serie[frame] = phase_vector
-            self.video.amplitude_serie[frame] = amplitude_vector
+            vector = self.video.frames[frame].ravel()
+            self.time_serie[frame] = vector
+        return self.time_serie
 
-    def remove_background(self):
-        print("removing background of the video using the time series\n")
-        frame = self.video.phase_serie[0, :].reshape(self.frames_heigh, self.frames_width)
-        plt.imsave('phase_before_pre_processing.jpeg', frame, cmap='gray')
-        phase_zero = self.video.phase_serie[0, :]
-        self.video.phase_serie = self.video.phase_serie[1:, :]
-        amplitude_mean = np.mean(self.video.amplitude_serie, axis=0)
-        amplitude_mean = np.uint8(np.abs(amplitude_mean))
-        flag, otsu = cv2.threshold(amplitude_mean, 125, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        columns_deleted = []
-        height = self.video.phase_serie.shape[0]
-        for pixel in range(len(otsu)):
-            if otsu[pixel] == 0:
-                columns_deleted.append(pixel)
-        for column in columns_deleted:
-            self.video.phase_serie[:, column] = np.full(height, 0, np.uint8)
-        plt.imsave('phase_pos_pre_processing.jpeg', frame, cmap='gray')
-        return phase_zero, amplitude_mean
+    def apply_hilbert_transform(self):
+        print("Applying Hilbert Transform in the time series\n")
+        hilbert_data = hilbert2(self.time_serie)
+        real_time_serie = hilbert_data.real
+        imag_time_serie = hilbert_data.imag
+        return real_time_serie, imag_time_serie
 
-    def apply_PCA(self):
+    def apply_PCA(self, time_serie):
         print('Apllying PCA in the phase series\n')
         pca = PCA(n_components=3)
-        dimension_reduced_series = pca.fit_transform(self.video.phase_serie)
+        dimension_reduced_series = pca.fit_transform(time_serie)
         return dimension_reduced_series, pca.components_
 
-    def apply_BSS(self, principal_components):
+    def apply_BSS(self, real_part, imag_part):
+        principal_components = np.concatenate((real_part, imag_part))
         print('Applying BSS')
         short_mask = return_mask(1.0, 8, 500)
         long_mask = return_mask(900000.0, 8, 500)
@@ -105,7 +56,7 @@ class Video_Magnification:
         long_cov = np.cov(long_filter)
         print('Calculando Auto Valores e Auto Vetores')
         eigen_values, eigen_vectors = linalg.eig(short_cov, long_cov)
-        return eigen_values, eigen_vectors
+        return eigen_values, eigen_vectors, principal_components
 
     def video_reconstruction(self, mode_shapes, modal_coordinates, phase_zero):
         matrix = np.matmul(modal_coordinates.T, mode_shapes.T)
