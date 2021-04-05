@@ -45,6 +45,7 @@ class Video_Magnification:
 
     def apply_BSS(self, real_part, imag_part):
         principal_components = np.concatenate((real_part, imag_part))
+        print(principal_components.shape)
         print('Applying BSS')
         short_mask = return_mask(1.0, 8, 500)
         long_mask = return_mask(900000.0, 8, 500)
