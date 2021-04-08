@@ -4,7 +4,7 @@ from video_processing import Video_Magnification
 import numpy as np
 
 
-video_path = 'video_samples/vibration.mp4'
+video_path = 'video_samples/vibration2.avi'
 
 # set the video object
 video = Video(video_path)
@@ -21,16 +21,25 @@ time_serie = video_magnification.create_time_series()
 real_time_serie, imag_time_serie = video_magnification.apply_hilbert_transform()
 
 # dimension reduction
-real_dimension_reduced_series, real_principal_components = video_magnification.apply_PCA(real_time_serie)
-imag_dimension_reduced_series, imag_principal_components = video_magnification.apply_PCA(imag_time_serie)
+real_vectors, real_values, real_reduced = video_magnification.apply_PCA(real_time_serie)
+imag_vectors, imag_values, imag_reduced = video_magnification.apply_PCA(imag_time_serie)
+
+# Sorting stuff
+eigen_values = np.append(real_values, imag_values)
+eigen_vectors = np.append(real_vectors, imag_vectors, axis=1)
+reduced = np.append(real_reduced, imag_reduced, axis=1)
+id = np.argsort(eigen_values)[::-1]
+eigen_values = eigen_values[id]
+eigen_vectors = eigen_vectors[:, id]
+reduced = reduced[:, id]
+number_components = 6
 
 # blind source separation
-eigen_values, eigen_vectors, principal_components = video_magnification.apply_BSS(real_principal_components, imag_principal_components)
-
+mixture_matrix, unmixed = video_magnification.apply_BSS(reduced[:, 0:number_components].T)
+unmixed = -1 * np.fliplr(unmixed)
+'''
 # visualize modes
-modes = np.matmul(principal_components.T, eigen_vectors)
-dimension_reduced_serie = np.concatenate((real_dimension_reduced_series.T, imag_dimension_reduced_series.T))
-modal_coordinates = np.matmul(dimension_reduced_serie.T, eigen_vectors.T)
+modes = eigen_vectors
 
 mode0 = modes[:, 0].reshape(video_magnification.frames_heigh, video_magnification.frames_width).real
 plt.imsave('video_samples/mode1.jpeg', mode0, cmap='gray')
@@ -49,22 +58,26 @@ plt.imsave('video_samples/mode5.jpeg', mode4, cmap='gray')
 
 mode5 = modes[:, 5].reshape(video_magnification.frames_heigh, video_magnification.frames_width).real
 plt.imsave('video_samples/mode6.jpeg', mode5, cmap='gray')
-
+'''
+t = np.arange(400)/240
 fig1 = plt.figure()
 for j in range(1, 7):
     fig1.add_subplot(2, 3, j)
-    plt.plot(modes[:, j-1].real, 'gray')
-'''
+    plt.plot(t, unmixed[:, j-1])
+
 fig2 = plt.figure()
 fig2.subplots_adjust(wspace=0.1)
-for j in range(1, 4):
+for j in range(1, 7):
     fig2.add_subplot(2, 4, j)
-    plt.imshow(imag_principal_components[j-1].reshape(video_magnification.frames_heigh, video_magnification.frames_width), 'gray', )
+    plt.imshow(eigen_vectors[:, j-1].reshape(video_magnification.frames_heigh, video_magnification.frames_width), 'gray', )
+
 fig3 = plt.figure()
-for j in range(1, 4):
-    fig3.add_subplot(2, 4, j)
-    plt.plot(imag_principal_components[j-1], 'gray', )
-'''
+freq = np.arange(400)/(400/240)
+for j in range(1, 7):
+    aux = np.abs(np.fft.fft(unmixed[:, j-1])) ** 2
+    fig3.add_subplot(2, 3, j)
+    plt.plot(freq[2:300], aux[2:300])
+
 # video reconstruction
 #W = eigen_vectors.T
 #mode_shapes = np.dot(principal_components.T, W)
