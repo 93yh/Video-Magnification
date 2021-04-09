@@ -5,7 +5,7 @@ from sklearn.decomposition import PCA
 from video_processing.complexity_pursuit_functions import return_mask
 from scipy.signal import lfilter
 from scipy import linalg
-from scipy.signal import hilbert2
+from scipy.signal import hilbert
 
 
 class Video_Magnification:
@@ -32,21 +32,23 @@ class Video_Magnification:
 
     def apply_hilbert_transform(self):
         print("Applying Hilbert Transform in the time series\n")
-        hilbert_data = hilbert2(self.time_serie)
-        real_time_serie = hilbert_data.real
-        imag_time_serie = hilbert_data.imag
+        hilbert_data = hilbert(np.copy(self.time_serie))
+        real_time_serie = self.time_serie
+        imag_time_serie = np.imag(hilbert_data)
         return real_time_serie, imag_time_serie
 
-    def apply_PCA2(self, time_serie):
+    def apply_PCA(self, time_serie):
         print('Apllying PCA in the phase series\n')
         pca = PCA()
-        reduced = pca.fit_transform(time_serie.T)
-        return reduced, pca.singular_values_, pca.components_
+        reduced = pca.fit_transform(time_serie)
+        print("Shape da matriz reduzida: ", reduced.shape)
+        print("Shape dos auto vetores: ", pca.components_.shape, '\n')
+        return pca.components_, pca.singular_values_, reduced
 
-    def apply_PCA(self, time_serie):
+    def apply_PCA2(self, time_serie):
         print('Apllying PCA in the phase series')
         pca = PCA()
-        eigen_vectors, eigen_values, Vt = pca._fit_full(time_serie.T, 3)
+        eigen_vectors, eigen_values, Vt = linalg.svd(time_serie, full_matrices=False)
         reduced = np.matmul(eigen_vectors.T, time_serie.T)
         print("Shape da matriz reduzida: ", reduced.shape)
         print("Shape dos auto vetores: ", eigen_vectors.shape, '\n')
@@ -64,8 +66,9 @@ class Video_Magnification:
         long_cov = np.cov(long_filter)
         print('Calculando Auto Valores e Auto Vetores')
         eigen_values, mixture_matrix = linalg.eig(long_cov, short_cov)
-        unmixed = -1 * np.matmul(principal_components.T, mixture_matrix)
+        mixture_matrix = mixture_matrix.real
         print('shape da matriz de mistura: ', mixture_matrix.shape, '\n')
+        unmixed = np.matmul(principal_components.T, mixture_matrix)
         return mixture_matrix, unmixed
 
     def video_reconstruction(self, mode_shapes, modal_coordinates, phase_zero):
