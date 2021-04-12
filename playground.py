@@ -2,14 +2,19 @@ import matplotlib.pyplot as plt
 from video_processing import Video
 from video_processing import Video_Magnification
 import numpy as np
+import scipy.io
 
 
 video_path = 'video_samples/vibration.avi'
-
+if video_path == 'video_samples/vibration2.avi':
+    frame_rate = 240
+    number_of_frames = 400
+else:
+    frame_rate = 480
+    number_of_frames = 600
 # set the video object
 video = Video(video_path)
 video.set_frames()
-
 # start video magnification
 video_magnification = Video_Magnification(video)
 
@@ -36,67 +41,47 @@ id = np.argsort(eigen_values)[::-1]
 eigen_values = eigen_values[id]
 eigen_vectors = eigen_vectors[:, id]
 print(reduced.shape)
-reduced = reduced[:, id]
+# reduced = reduced[:, id]
 number_components = 8
 
 # blind source separation
 mixture_matrix, unmixed = video_magnification.apply_BSS(reduced[:, 0:number_components].T)
-unmixed = -1 * np.fliplr(unmixed)
+unmixed = np.fliplr(unmixed)
 Winvmix = np.flip(np.linalg.inv(mixture_matrix))
-mode_shapes = np.matmul(Winvmix, eigen_vectors[:, 0:number_components].T)
 
-# visualize modes
-modes = mode_shapes
+# writing
+mdic = {"a": reduced, "label": "experiment"}
+scipy.io.savemat('components.mat', mdic)
 
-mode0 = modes[0].reshape(video_magnification.frames_heigh, video_magnification.frames_width)
-plt.imsave('video_samples/mode1.jpeg', mode0, cmap='gray')
+# visualize modes and modal coordinates
+mode_shapes = np.matmul(Winvmix, eigen_vectors[:, 0:number_components].T).T
+t = np.arange(number_of_frames)/frame_rate
+freq = np.arange(number_of_frames)/(number_of_frames/frame_rate)
+modal_coordinates = np.array([7, 6, 3, 2, 4, 5, 1, 0])
 
-mode1 = modes[1].reshape(video_magnification.frames_heigh, video_magnification.frames_width)
-plt.imsave('video_samples/mode2.jpeg', mode1, cmap='gray')
 
-mode2 = modes[2].reshape(video_magnification.frames_heigh, video_magnification.frames_width)
-plt.imsave('video_samples/mode3.jpeg', mode2, cmap='gray')
+fig, axs = plt.subplots(len(modal_coordinates), 3)
+rows = len(modal_coordinates)
+columns = 3
+for row in range(rows):
+    for column in range(columns):
+        axs[row][0].plot(t, unmixed[:, modal_coordinates[row]], color="#069AF3")
 
-mode3 = modes[3].reshape(video_magnification.frames_heigh, video_magnification.frames_width)
-plt.imsave('video_samples/mode4.jpeg', mode3, cmap='gray')
+        aux = (np.abs(np.fft.fft(unmixed[:, modal_coordinates[row]]))) ** 2
+        axs[row][1].plot(freq[2:300], aux[2:300], color="#069AF3")
 
-mode4 = modes[4].reshape(video_magnification.frames_heigh, video_magnification.frames_width)
-plt.imsave('video_samples/mode5.jpeg', mode4, cmap='gray')
-
-mode5 = modes[5].reshape(video_magnification.frames_heigh, video_magnification.frames_width)
-plt.imsave('video_samples/mode6.jpeg', mode5, cmap='gray')
-
-mode6 = modes[6].reshape(video_magnification.frames_heigh, video_magnification.frames_width)
-plt.imsave('video_samples/mode7.jpeg', mode6, cmap='gray')
-
-mode7 = modes[7].reshape(video_magnification.frames_heigh, video_magnification.frames_width)
-plt.imsave('video_samples/mode8.jpeg', mode7, cmap='gray')
-
-t = np.arange(600)/480
-fig1 = plt.figure()
-for j in range(1, number_components+1):
-    fig1.add_subplot(2, 4, j)
-    plt.plot(t, unmixed[:, j-1])
+        aux = (np.angle(np.fft.fft(unmixed[:, modal_coordinates[row]]))) ** 2
+        axs[row][2].plot(freq[2:300], aux[2:300], color="#069AF3")
 
 fig2 = plt.figure()
-fig2.subplots_adjust(wspace=0.1)
-for j in range(1, number_components + 1):
-    fig2.add_subplot(2, 4, j)
-    plt.plot(t, reduced[:, j-1])
+rows = 2
+columns = len(modal_coordinates)//2
+for row in range(number_components):
+        fig2.add_subplot(rows, columns, row+1)
+        plt.imshow(mode_shapes[:, row].reshape(video_magnification.frames_heigh,
+                                              video_magnification.frames_width), 'gray', aspect='auto')
 
-fig3 = plt.figure()
-freq = np.arange(600)/(600/480)
-for j in range(1, number_components + 1):
-    aux = (np.abs(np.fft.fft(unmixed[:, j-1]))) ** 2
-    fig3.add_subplot(2, 4, j)
-    plt.plot(freq[2:300], aux[2:300])
 
-fig4 = plt.figure()
-freq = np.arange(600)/(600/480)
-for j in range(1, number_components + 1):
-    aux = (np.angle(np.fft.fft(unmixed[:, j-1]))) ** 2
-    fig4.add_subplot(2, 4, j)
-    plt.plot(freq[2:300], aux[2:300])
 # video reconstruction
 #W = eigen_vectors.T
 #mode_shapes = np.dot(principal_components.T, W)
