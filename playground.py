@@ -40,8 +40,7 @@ reduced = np.append(real_reduced, imag_reduced, axis=1)
 id = np.argsort(eigen_values)[::-1]
 eigen_values = eigen_values[id]
 eigen_vectors = eigen_vectors[:, id]
-print(reduced.shape)
-# reduced = reduced[:, id]
+reduced = reduced[:, id]
 number_components = 8
 
 # blind source separation
