@@ -42,11 +42,30 @@ eigen_values = eigen_values[id]
 eigen_vectors = eigen_vectors[:, id]
 reduced = reduced[:, id]
 number_components = 8
+components = np.arange(8)
+
+# vizualize principal components
+fig, axs = plt.subplots(len(components), 3)
+rows = len(components)
+columns = 3
+t = np.arange(number_of_frames)/frame_rate
+freq = np.arange(number_of_frames)/(number_of_frames/frame_rate)
+for row in range(rows):
+    for column in range(columns):
+        axs[row][0].plot(t, reduced[:, components[row]], color="#069AF3")
+
+        aux = (np.abs(np.fft.fft(reduced[:, components[row]]))) ** 2
+        axs[row][1].plot(freq[2:300], aux[2:300], color="#069AF3")
+
+        aux = (np.angle(np.fft.fft(reduced[:, components[row]]))) ** 2
+        axs[row][2].plot(freq[2:300], aux[2:300], color="#069AF3")
 
 # blind source separation
-mixture_matrix, unmixed = video_magnification.apply_BSS(reduced[:, 0:number_components].T)
-unmixed = np.fliplr(unmixed)
-Winvmix = np.flip(np.linalg.inv(mixture_matrix))
+mixture_matrix, unmixed = video_magnification.apply_BSS(reduced[:, 0:number_components])
+unmixed = -np.flip(unmixed, axis=1)
+unmixed[:, 7] = -unmixed[:, 7]
+unmixed[:, 4] = -unmixed[:, 4]
+Winvmix = np.flip(np.linalg.inv(mixture_matrix), axis=0)
 
 # writing
 mdic = {"a": reduced, "label": "experiment"}
@@ -56,9 +75,7 @@ scipy.io.savemat('components.mat', mdic)
 mode_shapes = np.matmul(Winvmix, eigen_vectors[:, 0:number_components].T).T
 t = np.arange(number_of_frames)/frame_rate
 freq = np.arange(number_of_frames)/(number_of_frames/frame_rate)
-modal_coordinates = np.array([7, 6, 3, 2, 4, 5, 1, 0])
-
-
+modal_coordinates = np.array([7, 6, 3, 2, 0, 1, 5, 4])
 fig, axs = plt.subplots(len(modal_coordinates), 3)
 rows = len(modal_coordinates)
 columns = 3
@@ -72,11 +89,20 @@ for row in range(rows):
         aux = (np.angle(np.fft.fft(unmixed[:, modal_coordinates[row]]))) ** 2
         axs[row][2].plot(freq[2:300], aux[2:300], color="#069AF3")
 
-fig2 = plt.figure()
+columns = len(modal_coordinates)
+fig2, axs2 = plt.subplots(2, len(modal_coordinates))
+for column in range(columns):
+    axs2[0][column].plot(t, unmixed[:, modal_coordinates[column]], color="#069AF3")
+
+    axs2[1][column].imshow(mode_shapes[:, modal_coordinates[column]].reshape(video_magnification.frames_heigh,
+                                        video_magnification.frames_width), 'gray', aspect='auto')
+
+
+fig3 = plt.figure()
 rows = 2
 columns = len(modal_coordinates)//2
 for row in range(number_components):
-        fig2.add_subplot(rows, columns, row+1)
+        fig3.add_subplot(rows, columns, row+1)
         plt.imshow(mode_shapes[:, row].reshape(video_magnification.frames_heigh,
                                               video_magnification.frames_width), 'gray', aspect='auto')
 

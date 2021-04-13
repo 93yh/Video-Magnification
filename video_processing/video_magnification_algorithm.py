@@ -9,6 +9,7 @@ from scipy import linalg
 from scipy.signal import hilbert
 
 
+
 class Video_Magnification:
     def __init__(self, video):
         self.video = video
@@ -35,7 +36,7 @@ class Video_Magnification:
         print("Applying Hilbert Transform in the time series\n")
         hilbert_data = hilbert(self.time_serie, axis=0)
         hilbert_data = hilbert(hilbert_data.imag, axis=1)
-        real_time_serie = self.time_serie
+        real_time_serie = np.copy(self.time_serie)
         imag_time_serie = np.imag(hilbert_data)
         return real_time_serie, imag_time_serie
 
@@ -58,19 +59,18 @@ class Video_Magnification:
 
     def apply_BSS(self, principal_components):
         print('Applying BSS')
-        short_mask = return_mask(1.0, 8, 500)
-        long_mask = return_mask(900000.0, 8, 500)
+        short_mask = return_mask(1.0, 10, 50)
+        long_mask = return_mask(900000.0, 10, 50)
         print('Calculando filtros')
-        short_filter = lfilter(short_mask, 1,  principal_components)
-        long_filter = lfilter(long_mask, 1, principal_components)
+        short_filter = lfilter(short_mask, 1,  principal_components, axis=0)
+        long_filter = lfilter(long_mask, 1, principal_components, axis=0)
         print('Calculando matrizes de covariância')
-        short_cov = np.cov(short_filter)
-        long_cov = np.cov(long_filter)
+        short_cov = np.cov(short_filter, rowvar=False)
+        long_cov = np.cov(long_filter, rowvar=False)
         print('Calculando Auto Valores e Auto Vetores')
         eigen_values, mixture_matrix = linalg.eig(long_cov, short_cov)
-        mixture_matrix = mixture_matrix.real
         print('shape da matriz de mistura: ', mixture_matrix.shape, '\n')
-        unmixed = np.matmul(principal_components.T, mixture_matrix)
+        unmixed = -np.matmul(principal_components, mixture_matrix)
         return mixture_matrix, unmixed
 
     def apply_BSS2(self, principal_components):
