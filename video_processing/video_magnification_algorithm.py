@@ -70,7 +70,7 @@ class Video_Magnification:
         self.eigen_vectors = eigen_vectors
         self.eigen_values = eigen_values
         self.components = components
-        return eigen_vectors, eigen_values, components
+        return self.eigen_vectors, self.eigen_values, self.components
 
     def extract_sources(self, number_components):
         components = self.components[:, 0:number_components]
@@ -107,6 +107,9 @@ class Video_Magnification:
             visualize = self.components
         elif subject == "sources":
             print("visualizing sources\n")
+            visualize = self.sources
+        elif subject == "modal coordinates":
+            print("visualizing modal coordinates\n")
             visualize = self.sources
         else:
             print("Subject is wrong, inform if you want to see components or sources")
