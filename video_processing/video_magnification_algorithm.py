@@ -7,12 +7,14 @@ from scipy.signal import hilbert
 from video_processing.pca_functions import apply_pca
 from video_processing.visualization_functions import plot_components_or_sources
 from video_processing.visualization_functions import plot_mode_shapes_and_modal_coordinates
+import matplotlib.pyplot as plt
 
 
 class Video_Magnification:
     def __init__(self, video):
         self.video = video
         self.time_serie = None
+        self.time_serie_mean = None
         self.real_time_serie = None
         self.imag_time_serie = None
         self.real_vectors = None
@@ -37,6 +39,7 @@ class Video_Magnification:
             vector = self.video.gray_frames[frame].ravel()
             self.time_serie[frame] = vector
         mean = np.mean(self.time_serie, axis=0)
+        self.time_serie_mean = mean
         self.time_serie = self.time_serie - mean
         return self.time_serie
 
@@ -75,7 +78,7 @@ class Video_Magnification:
         short_mask = return_mask(1.0, 10, 50)
         long_mask = return_mask(900000.0, 10, 50)
         print('Calculando filtros')
-        short_filter = lfilter(short_mask, 1,  components, axis=0)
+        short_filter = lfilter(short_mask, 1, components, axis=0)
         long_filter = lfilter(long_mask, 1, components, axis=0)
         print('Calculando matrizes de covariância')
         short_cov = np.cov(short_filter, rowvar=False)
@@ -118,26 +121,47 @@ class Video_Magnification:
         t = np.arange(self.video.number_of_frames) / self.video.fps
         columns = len(order)
         plot_mode_shapes_and_modal_coordinates(self, columns, t)
-    '''
-    def video_reconstruction(self, mode_shapes, modal_coordinates, phase_zero):
-        matrix = np.matmul(modal_coordinates.T, mode_shapes.T)
-        matrix = np.insert(matrix, 0, phase_zero, axis=0)
-        result = self.video.amplitude_serie * np.exp(1j * matrix)
-        frame = result[1].reshape(self.frames_heigh, self.frames_width)
-        fft = np.fft.fft2(frame)
-        ifft = np.fft.ifft2(fft)
-        plt.imshow(ifft.imag, 'gray')
-        print(result)
+
+    def video_reconstruction(self, factor_1=5, factor_2=10, factor_3=15):
+        frames_0 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
+        frames_1 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
+        frames_2 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
+        frames_3 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
+        source0 = np.matmul(self.modal_coordinates, self.mode_shapes.T)
+        first_part = np.matmul(self.modal_coordinates[:, [0, 1]], self.mode_shapes[:, [0, 1]].T)
+        second_part = np.matmul(self.modal_coordinates[:, [2, 3]], self.mode_shapes[:, [2, 3]].T)
+        third_part = np.matmul(self.modal_coordinates[:, [4, 5]], self.mode_shapes[:, [4, 5]].T)
+        source1 = (factor_1 * first_part) - second_part - third_part
+        source2 = -first_part + (factor_2 * second_part) - third_part
+        source3 = -first_part - second_part + (factor_3 * third_part)
+        self.time_serie_mean = self.time_serie_mean.reshape(self.video.frames_shape)
+        for row in range(self.video.number_of_frames):
+            frame_0 = source0[row, :].reshape(self.video.frames_shape) + self.time_serie_mean
+            frames_0[row] = frame_0
+
+            frame_1 = source1[row, :].reshape(self.video.frames_shape) + self.time_serie_mean
+            frames_1[row] = frame_1
+
+            frame_2 = source2[row, :].reshape(self.video.frames_shape) + self.time_serie_mean
+            frames_2[row] = frame_2
+
+            frame_3 = source3[row, :].reshape(self.video.frames_shape) + self.time_serie_mean
+            frames_3[row] = frame_3
+
+        frames_0 = ((frames_0 - frames_0.min()) * (1 / (frames_0.max() - frames_0.min()) * 255)).astype('uint8')
+        frames_1 = ((frames_1 - frames_1.min()) * (1 / (frames_1.max() - frames_1.min()) * 255)).astype('uint8')
+        frames_2 = ((frames_2 - frames_2.min()) * (1 / (frames_2.max() - frames_2.min()) * 255)).astype('uint8')
+        frames_3 = ((frames_3 - frames_3.min()) * (1 / (frames_3.max() - frames_3.min()) * 255)).astype('uint8')
+        return frames_0, frames_1, frames_2, frames_3
 
     def create_video_from_frames(self, name, frames=None):
-            if not frames:
-                frames = self.video.frames
-            print('Creating video from the frames\n')
-            height, width = self.video.frames[0].shape
-            size = (width, height)
-            fourcc = cv2.VideoWriter_fourcc(*'XVID')
-            out = cv2.VideoWriter('video_samples/%s' % name, fourcc, 20.0, size, 0)
-            for i in range(len(frames)):
-                out.write(frames[i])
-            out.release()
-    '''
+        if frames is None:
+            frames = self.video.frames
+        print('Creating video from the frames\n')
+        height, width = self.video.frames_shape
+        size = (width, height)
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out = cv2.VideoWriter('video_samples/%s.avi' % name, fourcc, 20.0, size, 0)
+        for i in range(len(frames)):
+            out.write(frames[i])
+        out.release()

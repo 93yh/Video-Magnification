@@ -45,11 +45,8 @@ video_magnification.visualize_components_or_sources('sources', sources_order)
 video_magnification.visualize_mode_shapes_and_modal_coordinates(modal_coordinates_order)
 
 # video reconstruction
-#W = eigen_vectors.T
-#mode_shapes = np.dot(principal_components.T, W)
-#modal_coordinates = np.matmul(W, dimension_reduced_series.T)
-#video_magnification.video_reconstruction(mode_shapes, modal_coordinates, phase_zero)
-
-# plt.plot(modal_coordinates[1, :])
-# plt.imshow(mode_shapes[0].reshape(video_magnification.frames_heigh, video_magnification.frames_width), 'gray')
-# plt.clf()
+frames_0, frames_1, frames_2, frames_3 = video_magnification.video_reconstruction(factor_1=50)
+video_magnification.create_video_from_frames("mode0", frames=frames_0)
+video_magnification.create_video_from_frames("mode1", frames=frames_1)
+video_magnification.create_video_from_frames("mode2", frames=frames_2)
+video_magnification.create_video_from_frames("mode3", frames=frames_3)

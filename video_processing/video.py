@@ -32,6 +32,7 @@ class Video:
         print("Defining video FPS")
         video = cv2.VideoCapture(self.video_path)
         fps = video.get(cv2.CAP_PROP_FPS)
+        video.release()
         print('FPS of the video: ', fps, '\n')
         return fps
 
