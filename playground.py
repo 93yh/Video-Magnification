@@ -5,11 +5,11 @@ import scipy.io
 import matplotlib.pyplot as plt
 
 
-video_path = 'video_samples/vibration.avi'
-number_components = 8
+video_path = 'video_samples/vibration2.avi'
+number_components = 16
 components_order = np.arange(number_components)
 sources_order = np.arange(number_components)
-modal_coordinates_order = np.array([7, 6, 1, 0, 5, 4])
+modal_coordinates_order = np.array([0, 1, 2, 3, 11, 12])
 
 # set the video object
 video = Video(video_path)
@@ -42,11 +42,11 @@ video_magnification.visualize_components_or_sources('components', components_ord
 # visualize sources
 video_magnification.visualize_components_or_sources('sources', sources_order)
 
-# visualize only modal coordinates
-video_magnification.visualize_components_or_sources('modal coordinates', modal_coordinates_order)
-
 # visualize modal coordinates and mode shapes
 video_magnification.visualize_mode_shapes_and_modal_coordinates(modal_coordinates_order)
+
+# visualize only modal coordinates
+video_magnification.visualize_components_or_sources('modal coordinates', np.arange(len(modal_coordinates_order)))
 
 # video reconstruction
 frames_0, frames_1, frames_2, frames_3 = video_magnification.video_reconstruction()

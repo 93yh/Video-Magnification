@@ -99,7 +99,7 @@ class Video_Magnification:
         mode_shapes = mode_shapes[:, order]
         self.mode_shapes = mode_shapes
         self.modal_coordinates = modal_coordinates
-        return mode_shapes, modal_coordinates
+        return self.mode_shapes, self.modal_coordinates
 
     def visualize_components_or_sources(self, subject, order):
         if subject == "components":
@@ -110,7 +110,7 @@ class Video_Magnification:
             visualize = self.sources
         elif subject == "modal coordinates":
             print("visualizing modal coordinates\n")
-            visualize = self.sources
+            visualize = self.modal_coordinates
         else:
             print("Subject is wrong, inform if you want to see components or sources")
             return None
@@ -125,7 +125,7 @@ class Video_Magnification:
         columns = len(order)
         plot_mode_shapes_and_modal_coordinates(self, columns, t)
 
-    def video_reconstruction(self, factor_1=5, factor_2=10, factor_3=15):
+    def video_reconstruction(self, factor_1=5, factor_2=15, factor_3=30):
         frames_0 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
         frames_1 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
         frames_2 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
@@ -157,14 +157,16 @@ class Video_Magnification:
         frames_3 = ((frames_3 - frames_3.min()) * (1 / (frames_3.max() - frames_3.min()) * 255)).astype('uint8')
         return frames_0, frames_1, frames_2, frames_3
 
-    def create_video_from_frames(self, name, frames=None):
+    def create_video_from_frames(self, name, frames=None, fps=None):
         if frames is None:
             frames = self.video.frames
+        if fps is None:
+            fps = self.video.fps
         print('Creating video from the frames\n')
         height, width = self.video.frames_shape
         size = (width, height)
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter('video_samples/%s.avi' % name, fourcc, 20.0, size, 0)
+        out = cv2.VideoWriter('video_samples/%s.avi' % name, fourcc, fps, size, 0)
         for i in range(len(frames)):
             out.write(frames[i])
         out.release()
