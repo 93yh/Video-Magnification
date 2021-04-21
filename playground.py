@@ -5,17 +5,19 @@ import scipy.io
 import matplotlib.pyplot as plt
 
 
-video_path = 'video_samples/vibration2.avi'
-number_components = 16
+video_path = 'video_samples/vibration.avi'
+number_components = 8
 components_order = np.arange(number_components)
 sources_order = np.arange(number_components)
-modal_coordinates_order = np.array([0, 1, 2, 3, 11, 12])
+# modal_coordinates_order = np.array([8, 9, 2, 3, 11, 12])
+modal_coordinates_order = np.array([0, 1, 4, 5, 6, 7])
 
 # set the video object
 video = Video(video_path)
 
 # Start video magnification
 video_magnification = Video_Magnification(video)
+video_magnification.create_video_from_frames("frames_gray", frames=video.gray_frames)
 
 # Create time series
 time_serie = video_magnification.create_time_series()
@@ -54,3 +56,6 @@ video_magnification.create_video_from_frames("mode0", frames=frames_0)
 video_magnification.create_video_from_frames("mode1", frames=frames_1)
 video_magnification.create_video_from_frames("mode2", frames=frames_2)
 video_magnification.create_video_from_frames("mode3", frames=frames_3)
+
+# Calculate error
+error, norm = video_magnification.calculate_error(video_magnification.reconstructed)

@@ -30,6 +30,9 @@ class Video_Magnification:
         self.mixture_matrix = None
         self.mode_shapes = None
         self.modal_coordinates = None
+        self.error = None
+        self.norm = None
+        self.reconstructed = None
 
     def create_time_series(self):
         print('Creating time series\n')
@@ -93,6 +96,7 @@ class Video_Magnification:
         return self.mixture_matrix, self.sources
 
     def create_mode_shapes_and_modal_coordinates(self, number_components, order):
+        print("Creating mode shapes and modal coordinates\n")
         winvmix = np.flip(np.linalg.inv(self.mixture_matrix), axis=0)
         mode_shapes = np.matmul(winvmix, self.eigen_vectors[:, 0:number_components].T).T
         modal_coordinates = self.sources[:, order]
@@ -125,7 +129,8 @@ class Video_Magnification:
         columns = len(order)
         plot_mode_shapes_and_modal_coordinates(self, columns, t)
 
-    def video_reconstruction(self, factor_1=5, factor_2=15, factor_3=30):
+    def video_reconstruction(self, factor_1=30, factor_2=15, factor_3=5):
+        print("Reconstruting video from mode shapes ans modal coordinates\n")
         frames_0 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
         frames_1 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
         frames_2 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
@@ -138,6 +143,7 @@ class Video_Magnification:
         source2 = -first_part + (factor_2 * second_part) - third_part
         source3 = -first_part - second_part + (factor_3 * third_part)
         self.time_serie_mean = self.time_serie_mean.reshape(self.video.frames_shape)
+        self.error = np.zeros(self.video.frames_shape, dtype='int64')
         for row in range(self.video.number_of_frames):
             frame_0 = source0[row, :].reshape(self.video.frames_shape) + self.time_serie_mean
             frames_0[row] = frame_0
@@ -151,11 +157,19 @@ class Video_Magnification:
             frame_3 = source3[row, :].reshape(self.video.frames_shape) + self.time_serie_mean
             frames_3[row] = frame_3
 
-        frames_0 = ((frames_0 - frames_0.min()) * (1 / (frames_0.max() - frames_0.min()) * 255)).astype('uint8')
+        self.reconstructed = np.copy(frames_0)
+        frames_0 = ((frames_0 - frames_0.min()) * (255 - 0) / (frames_0.max() - frames_0.min()) + 0).astype('uint8')
         frames_1 = ((frames_1 - frames_1.min()) * (1 / (frames_1.max() - frames_1.min()) * 255)).astype('uint8')
         frames_2 = ((frames_2 - frames_2.min()) * (1 / (frames_2.max() - frames_2.min()) * 255)).astype('uint8')
         frames_3 = ((frames_3 - frames_3.min()) * (1 / (frames_3.max() - frames_3.min()) * 255)).astype('uint8')
         return frames_0, frames_1, frames_2, frames_3
+
+    def calculate_error(self, frames_0):
+        self.error = np.zeros(self.video.frames_shape, dtype='float64')
+        for frame in range(self.video.number_of_frames):
+            self.error = self.error + (self.video.gray_frames[frame].astype('float64') - frames_0[frame].astype('float64'))
+        self.norm = np.sum(self.error.ravel())**2
+        return self.error, self.norm
 
     def create_video_from_frames(self, name, frames=None, fps=None):
         if frames is None:
