@@ -57,7 +57,7 @@ class Video_Magnification:
         return self.real_time_serie, self.imag_time_serie
 
     def dimension_reduction(self):
-        print('Apllying PCA in the phase series\n')
+        print('Apllying PCA in the phase series')
         real_vectors, real_values, real_components = apply_pca(self.real_time_serie)
         imag_vectors, imag_values, imag_components = apply_pca(self.imag_time_serie)
         # sorting
@@ -80,15 +80,15 @@ class Video_Magnification:
         print('Applying BSS')
         short_mask = return_mask(1.0, 10, 50)
         long_mask = return_mask(900000.0, 10, 50)
-        print('Calculando filtros')
+        print('calculating filters')
         short_filter = lfilter(short_mask, 1, components, axis=0)
         long_filter = lfilter(long_mask, 1, components, axis=0)
-        print('Calculando matrizes de covariância')
+        print('Calculating covariance matrix')
         short_cov = np.cov(short_filter, rowvar=False)
         long_cov = np.cov(long_filter, rowvar=False)
-        print('Calculando Auto Valores e Auto Vetores')
+        print('Calculating eigenvectors and eigenvalues')
         eigen_values, mixture_matrix = linalg.eig(long_cov, short_cov)
-        print('shape da matriz de mistura: ', mixture_matrix.shape, '\n')
+        print('mixing matrix shape: ', mixture_matrix.shape, '\n')
         unmixed = -np.matmul(components, mixture_matrix)
         unmixed = -np.flip(unmixed, axis=1)
         self.sources = unmixed
@@ -96,13 +96,15 @@ class Video_Magnification:
         return self.mixture_matrix, self.sources
 
     def create_mode_shapes_and_modal_coordinates(self, number_components, order):
-        print("Creating mode shapes and modal coordinates\n")
+        print("Creating mode shapes and modal coordinates")
         winvmix = np.flip(np.linalg.inv(self.mixture_matrix), axis=0)
         mode_shapes = np.matmul(winvmix, self.eigen_vectors[:, 0:number_components].T).T
         modal_coordinates = self.sources[:, order]
         mode_shapes = mode_shapes[:, order]
         self.mode_shapes = mode_shapes
         self.modal_coordinates = modal_coordinates
+        print("Size of mode shapes in bytes: ", self.mode_shapes.nbytes)
+        print("Size of modal coordinates in bytes: ", self.modal_coordinates.nbytes, '\n')
         return self.mode_shapes, self.modal_coordinates
 
     def visualize_components_or_sources(self, subject, order):
@@ -158,17 +160,19 @@ class Video_Magnification:
             frames_3[row] = frame_3
 
         self.reconstructed = np.copy(frames_0)
-        frames_0 = ((frames_0 - frames_0.min()) * (255 - 0) / (frames_0.max() - frames_0.min()) + 0).astype('uint8')
+        frames_0 = ((frames_0 - frames_0.min()) * (1 / (frames_0.max() - frames_0.min()) * 255)).astype('uint8')
         frames_1 = ((frames_1 - frames_1.min()) * (1 / (frames_1.max() - frames_1.min()) * 255)).astype('uint8')
         frames_2 = ((frames_2 - frames_2.min()) * (1 / (frames_2.max() - frames_2.min()) * 255)).astype('uint8')
         frames_3 = ((frames_3 - frames_3.min()) * (1 / (frames_3.max() - frames_3.min()) * 255)).astype('uint8')
         return frames_0, frames_1, frames_2, frames_3
 
     def calculate_error(self, frames_0):
+        print('Calculating error and norm betwen original and reconstructed videos')
         self.error = np.zeros(self.video.frames_shape, dtype='float64')
         for frame in range(self.video.number_of_frames):
             self.error = self.error + (self.video.gray_frames[frame].astype('float64') - frames_0[frame].astype('float64'))
         self.norm = np.sum(self.error.ravel())**2
+        print("Final Norm: ", self.norm, '\n')
         return self.error, self.norm
 
     def create_video_from_frames(self, name, frames=None, fps=None):
