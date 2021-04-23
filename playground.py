@@ -22,6 +22,9 @@ video_magnification.create_video_from_frames("frames_gray", frames=video.gray_fr
 # Create time series
 time_serie = video_magnification.create_time_series()
 
+# Remove background
+video_magnification.remove_background()
+
 # Hibert Transform
 real_time_serie, imag_time_serie = video_magnification.apply_hilbert_transform()
 
@@ -58,4 +61,4 @@ video_magnification.create_video_from_frames("mode2", frames=frames_2)
 video_magnification.create_video_from_frames("mode3", frames=frames_3)
 
 # Calculate error
-error, norm = video_magnification.calculate_error(video_magnification.reconstructed)
+error, norm = video_magnification.calculate_error()

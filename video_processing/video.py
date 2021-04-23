@@ -8,6 +8,7 @@ class Video:
         self.number_of_frames = None
         self.frames = self.set_frames()
         self.frames_shape = self.frames[0].shape[0: 2]
+        self.number_of_pixels = self.frames_shape[0] * self.frames_shape[1]
         self.fps = self.define_fps()
         self.gray_frames = self.produce_gray_frames()
 

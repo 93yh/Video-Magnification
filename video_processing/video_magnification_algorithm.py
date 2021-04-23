@@ -8,6 +8,7 @@ from video_processing.pca_functions import apply_pca
 from video_processing.visualization_functions import plot_components_or_sources
 from video_processing.visualization_functions import plot_mode_shapes_and_modal_coordinates
 import matplotlib.pyplot as plt
+import random
 
 
 class Video_Magnification:
@@ -33,18 +34,28 @@ class Video_Magnification:
         self.error = None
         self.norm = None
         self.reconstructed = None
+        self.encryption_key = None
 
     def create_time_series(self):
         print('Creating time series\n')
-        pixels_number = self.video.frames_shape[0] * self.video.frames_shape[1]
-        self.time_serie = np.zeros((self.video.number_of_frames, pixels_number))
+        self.time_serie = np.zeros((self.video.number_of_frames, self.video.number_of_pixels))
         for frame in range(self.video.number_of_frames):
             vector = self.video.gray_frames[frame].ravel()
             self.time_serie[frame] = vector
-        mean = np.mean(self.time_serie, axis=0)
-        self.time_serie_mean = mean
-        self.time_serie = self.time_serie - mean
         return self.time_serie
+
+    def remove_background(self):
+        self.time_serie_mean = np.mean(self.time_serie, axis=0)
+        self.time_serie = self.time_serie - self.time_serie_mean
+
+    def scramble(self):
+        print("Scrambling the pixels of the video\n")
+        permutation_vector = random.sample(range(self.video.number_of_pixels), self.video.number_of_pixels)
+        self.time_serie = self.time_serie[:, permutation_vector]
+        self.encryption_key = np.arange(self.video.number_of_pixels)
+        indexes = np.argsort(permutation_vector)
+        self.encryption_key = self.encryption_key[indexes]
+        return self.encryption_key
 
     def apply_hilbert_transform(self):
         print("Applying Hilbert Transform in the time series\n")
@@ -126,13 +137,13 @@ class Video_Magnification:
         columns = 3
         plot_components_or_sources(rows, columns, t, freq, visualize, order)
 
-    def visualize_mode_shapes_and_modal_coordinates(self, order):
+    def visualize_mode_shapes_and_modal_coordinates(self, order, do_unscramble=False):
         t = np.arange(self.video.number_of_frames) / self.video.fps
         columns = len(order)
-        plot_mode_shapes_and_modal_coordinates(self, columns, t)
+        plot_mode_shapes_and_modal_coordinates(self, columns, t, do_unscramble)
 
-    def video_reconstruction(self, factor_1=30, factor_2=15, factor_3=5):
-        print("Reconstruting video from mode shapes ans modal coordinates\n")
+    def video_reconstruction(self, factor_1=30, factor_2=15, factor_3=5, do_unscramble=False):
+        print("Reconstruting video from mode shapes and modal coordinates\n")
         frames_0 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
         frames_1 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
         frames_2 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
@@ -144,19 +155,25 @@ class Video_Magnification:
         source1 = (factor_1 * first_part) - second_part - third_part
         source2 = -first_part + (factor_2 * second_part) - third_part
         source3 = -first_part - second_part + (factor_3 * third_part)
-        self.time_serie_mean = self.time_serie_mean.reshape(self.video.frames_shape)
+        if do_unscramble:
+            background = self.time_serie_mean[self.encryption_key].reshape(self.video.frames_shape)
+        else:
+            background = self.time_serie_mean.reshape(self.video.frames_shape)
         self.error = np.zeros(self.video.frames_shape, dtype='int64')
         for row in range(self.video.number_of_frames):
-            frame_0 = source0[row, :].reshape(self.video.frames_shape) + self.time_serie_mean
+            if not do_unscramble:
+                frame_0 = source0[row, :].reshape(self.video.frames_shape) + background
+                frame_1 = source1[row, :].reshape(self.video.frames_shape) + background
+                frame_2 = source2[row, :].reshape(self.video.frames_shape) + background
+                frame_3 = source3[row, :].reshape(self.video.frames_shape) + background
+            else:
+                frame_0 = source0[row, self.encryption_key].reshape(self.video.frames_shape) + background
+                frame_1 = source1[row, self.encryption_key].reshape(self.video.frames_shape) + background
+                frame_2 = source2[row, self.encryption_key].reshape(self.video.frames_shape) + background
+                frame_3 = source3[row, self.encryption_key].reshape(self.video.frames_shape) + background
             frames_0[row] = frame_0
-
-            frame_1 = source1[row, :].reshape(self.video.frames_shape) + self.time_serie_mean
             frames_1[row] = frame_1
-
-            frame_2 = source2[row, :].reshape(self.video.frames_shape) + self.time_serie_mean
             frames_2[row] = frame_2
-
-            frame_3 = source3[row, :].reshape(self.video.frames_shape) + self.time_serie_mean
             frames_3[row] = frame_3
 
         self.reconstructed = np.copy(frames_0)
@@ -166,11 +183,11 @@ class Video_Magnification:
         frames_3 = ((frames_3 - frames_3.min()) * (1 / (frames_3.max() - frames_3.min()) * 255)).astype('uint8')
         return frames_0, frames_1, frames_2, frames_3
 
-    def calculate_error(self, frames_0):
+    def calculate_error(self):
         print('Calculating error and norm betwen original and reconstructed videos')
         self.error = np.zeros(self.video.frames_shape, dtype='float64')
         for frame in range(self.video.number_of_frames):
-            self.error = self.error + (self.video.gray_frames[frame].astype('float64') - frames_0[frame].astype('float64'))
+            self.error = self.error + (self.video.gray_frames[frame].astype('float64') - self.reconstructed[frame])
         self.norm = np.sum(self.error.ravel())**2
         print("Final Norm: ", self.norm, '\n')
         return self.error, self.norm
