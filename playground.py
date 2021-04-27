@@ -37,10 +37,6 @@ mixture_matrix, sources = video_magnification.extract_sources(number_components)
 # create mode shapes and modal coordinates
 mode_shapes, modal_coordinates = video_magnification.create_mode_shapes_and_modal_coordinates(number_components,
                                                                                               modal_coordinates_order)
-# write in a file to use the same variable on matlab for debugging purposes
-mdic = {"a": components, "label": "experiment"}
-scipy.io.savemat('components.mat', mdic)
-
 # vizualize principal components
 video_magnification.visualize_components_or_sources('components', components_order)
 
@@ -62,3 +58,9 @@ video_magnification.create_video_from_frames("mode3", frames=frames_3)
 
 # Calculate error
 error, norm = video_magnification.calculate_error()
+
+# write in a file to use the same variable on matlab for debugging purposes
+mdic = {"a": mode_shapes, "label": "experiment"}
+scipy.io.savemat('mode_shapes.mat', mdic)
+mdic = {"a": modal_coordinates, "label": "experiment"}
+scipy.io.savemat('modal_coordinates.mat', mdic)

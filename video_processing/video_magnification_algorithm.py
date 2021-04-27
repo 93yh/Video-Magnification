@@ -112,7 +112,7 @@ class Video_Magnification:
         mode_shapes = np.matmul(winvmix, self.eigen_vectors[:, 0:number_components].T).T
         modal_coordinates = self.sources[:, order]
         mode_shapes = mode_shapes[:, order]
-        self.mode_shapes = mode_shapes
+        self.mode_shapes = mode_shapes.astype('float32')
         self.modal_coordinates = modal_coordinates
         print("Size of mode shapes in bytes: ", self.mode_shapes.nbytes)
         print("Size of modal coordinates in bytes: ", self.modal_coordinates.nbytes, '\n')
