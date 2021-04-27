@@ -21,7 +21,7 @@ class Video:
         for read in range(self.number_of_frames):
             flag, frame = video.read()
             if read == 0:
-                frames = np.zeros((self.number_of_frames, frame.shape[0], frame.shape[1], 3), dtype='uint8')
+                frames = np.zeros((self.number_of_frames, frame.shape[0], frame.shape[1], 3), 'uint8')
             if (cv2.waitKey(1) and 0xFF == ord('q')) or flag is False:
                 break
             frames[read] = frame
@@ -37,10 +37,10 @@ class Video:
         return fps
 
     def produce_gray_frames(self):
-        print('Standardizing frames of the video\n')
-        gray_frames = np.zeros((self.number_of_frames, self.frames_shape[0], self.frames_shape[1]), dtype='uint8')
+        print('produzing gray frames\n')
+        gray_frames = np.zeros((self.number_of_frames, self.frames_shape[0], self.frames_shape[1]))
         for frame in range(self.number_of_frames):
-            gray_frames[frame] = cv2.cvtColor(self.frames[frame], cv2.COLOR_RGB2GRAY)
+            gray_frames[frame] = cv2.cvtColor(self.frames[frame], cv2.COLOR_BGR2GRAY)
         return gray_frames
 
     def visualize_video(self):

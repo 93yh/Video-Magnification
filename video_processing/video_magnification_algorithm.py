@@ -40,11 +40,12 @@ class Video_Magnification:
         print('Creating time series\n')
         self.time_serie = np.zeros((self.video.number_of_frames, self.video.number_of_pixels))
         for frame in range(self.video.number_of_frames):
-            vector = self.video.gray_frames[frame].ravel()
+            vector = self.video.gray_frames[frame].ravel(order="F")
             self.time_serie[frame] = vector
         return self.time_serie
 
     def remove_background(self):
+        print("Removing background from the time series\n")
         self.time_serie_mean = np.mean(self.time_serie, axis=0)
         self.time_serie = self.time_serie - self.time_serie_mean
 
@@ -60,7 +61,6 @@ class Video_Magnification:
     def apply_hilbert_transform(self):
         print("Applying Hilbert Transform in the time series\n")
         hilbert_data = hilbert(self.time_serie, axis=0)
-        hilbert_data = hilbert(hilbert_data.imag, axis=1)
         real_time_serie = np.copy(self.time_serie)
         imag_time_serie = np.imag(hilbert_data)
         self.real_time_serie = real_time_serie
@@ -95,12 +95,13 @@ class Video_Magnification:
         short_filter = lfilter(short_mask, 1, components, axis=0)
         long_filter = lfilter(long_mask, 1, components, axis=0)
         print('Calculating covariance matrix')
-        short_cov = np.cov(short_filter, rowvar=False)
-        long_cov = np.cov(long_filter, rowvar=False)
+        short_cov = np.cov(short_filter, bias=1, rowvar=False)
+        long_cov = np.cov(long_filter, bias=1, rowvar=False)
         print('Calculating eigenvectors and eigenvalues')
         eigen_values, mixture_matrix = linalg.eig(long_cov, short_cov)
         print('mixing matrix shape: ', mixture_matrix.shape, '\n')
-        unmixed = -np.matmul(components, mixture_matrix)
+        mixture_matrix = np.real(mixture_matrix)
+        unmixed = -np.matmul(components, mixture_matrix.T)
         unmixed = -np.flip(unmixed, axis=1)
         self.sources = unmixed
         self.mixture_matrix = mixture_matrix
@@ -156,35 +157,34 @@ class Video_Magnification:
         source2 = -first_part + (factor_2 * second_part) - third_part
         source3 = -first_part - second_part + (factor_3 * third_part)
         if do_unscramble:
-            background = self.time_serie_mean[self.encryption_key].reshape(self.video.frames_shape)
+            background = self.time_serie_mean[self.encryption_key].reshape(self.video.frames_shape, order="F")
         else:
-            background = self.time_serie_mean.reshape(self.video.frames_shape)
-        self.error = np.zeros(self.video.frames_shape, dtype='int64')
+            background = self.time_serie_mean.reshape(self.video.frames_shape, order="F")
         for row in range(self.video.number_of_frames):
             if not do_unscramble:
-                frame_0 = source0[row, :].reshape(self.video.frames_shape) + background
-                frame_1 = source1[row, :].reshape(self.video.frames_shape) + background
-                frame_2 = source2[row, :].reshape(self.video.frames_shape) + background
-                frame_3 = source3[row, :].reshape(self.video.frames_shape) + background
+                frame_0 = source0[row, :].reshape(self.video.frames_shape, order="F") + background
+                frame_1 = source1[row, :].reshape(self.video.frames_shape, order="F") + background
+                frame_2 = source2[row, :].reshape(self.video.frames_shape, order="F") + background
+                frame_3 = source3[row, :].reshape(self.video.frames_shape, order="F") + background
             else:
-                frame_0 = source0[row, self.encryption_key].reshape(self.video.frames_shape) + background
-                frame_1 = source1[row, self.encryption_key].reshape(self.video.frames_shape) + background
-                frame_2 = source2[row, self.encryption_key].reshape(self.video.frames_shape) + background
-                frame_3 = source3[row, self.encryption_key].reshape(self.video.frames_shape) + background
+                frame_0 = source0[row, self.encryption_key].reshape(self.video.frames_shape, order="F") + background
+                frame_1 = source1[row, self.encryption_key].reshape(self.video.frames_shape, order="F") + background
+                frame_2 = source2[row, self.encryption_key].reshape(self.video.frames_shape, order="F") + background
+                frame_3 = source3[row, self.encryption_key].reshape(self.video.frames_shape, order="F") + background
             frames_0[row] = frame_0
             frames_1[row] = frame_1
             frames_2[row] = frame_2
             frames_3[row] = frame_3
 
         self.reconstructed = np.copy(frames_0)
-        frames_0 = ((frames_0 - frames_0.min()) * (1 / (frames_0.max() - frames_0.min()) * 255)).astype('uint8')
-        frames_1 = ((frames_1 - frames_1.min()) * (1 / (frames_1.max() - frames_1.min()) * 255)).astype('uint8')
-        frames_2 = ((frames_2 - frames_2.min()) * (1 / (frames_2.max() - frames_2.min()) * 255)).astype('uint8')
-        frames_3 = ((frames_3 - frames_3.min()) * (1 / (frames_3.max() - frames_3.min()) * 255)).astype('uint8')
+        frames_0 = frames_0.astype('uint8')
+        frames_1 = frames_1.astype('uint8')
+        frames_2 = frames_2.astype('uint8')
+        frames_3 = frames_3.astype('uint8')
         return frames_0, frames_1, frames_2, frames_3
 
     def calculate_error(self):
-        print('Calculating error and norm betwen original and reconstructed videos')
+        print('Calculating error and norm between original and reconstructed videos')
         self.error = np.zeros(self.video.frames_shape, dtype='float64')
         for frame in range(self.video.number_of_frames):
             self.error = self.error + (self.video.gray_frames[frame].astype('float64') - self.reconstructed[frame])
@@ -203,5 +203,5 @@ class Video_Magnification:
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         out = cv2.VideoWriter('video_samples/%s.avi' % name, fourcc, fps, size, 0)
         for i in range(len(frames)):
-            out.write(frames[i])
+            out.write(frames[i].astype('uint8'))
         out.release()
