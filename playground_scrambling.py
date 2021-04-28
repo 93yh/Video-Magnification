@@ -10,7 +10,7 @@ number_components = 8
 components_order = np.arange(number_components)
 sources_order = np.arange(number_components)
 # modal_coordinates_order = np.array([8, 9, 2, 3, 11, 12])
-modal_coordinates_order = np.array([0, 1, 4, 5, 6, 7])
+modal_coordinates_order = np.array([0, 1, 2, 3, 6, 7])
 
 # set the video object
 video = Video(video_path)
@@ -40,9 +40,6 @@ mixture_matrix, sources = video_magnification.extract_sources(number_components)
 # create mode shapes and modal coordinates
 mode_shapes, modal_coordinates = video_magnification.create_mode_shapes_and_modal_coordinates(number_components,
                                                                                               modal_coordinates_order)
-# write in a file to use the same variable on matlab for debugging purposes
-mdic = {"a": components, "label": "experiment"}
-scipy.io.savemat('components.mat', mdic)
 
 # vizualize principal components
 video_magnification.visualize_components_or_sources('components', components_order)

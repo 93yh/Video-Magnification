@@ -177,10 +177,14 @@ class Video_Magnification:
             frames_3[row] = frame_3
 
         self.reconstructed = np.copy(frames_0)
-        frames_0 = frames_0.astype('uint8')
-        frames_1 = frames_1.astype('uint8')
-        frames_2 = frames_2.astype('uint8')
-        frames_3 = frames_3.astype('uint8')
+        frames_0[frames_0 > 255] = 255
+        frames_0[frames_0 < 0] = 0
+        frames_1[frames_1 > 255] = 255
+        frames_1[frames_1 < 0] = 0
+        frames_2[frames_2 > 255] = 255
+        frames_2[frames_2 < 0] = 0
+        frames_3[frames_3 > 255] = 255
+        frames_3[frames_3 < 0] = 0
         return frames_0, frames_1, frames_2, frames_3
 
     def calculate_error(self):
