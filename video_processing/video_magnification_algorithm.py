@@ -101,7 +101,7 @@ class Video_Magnification:
         eigen_values, mixture_matrix = linalg.eig(long_cov, short_cov)
         print('mixing matrix shape: ', mixture_matrix.shape, '\n')
         mixture_matrix = np.real(mixture_matrix)
-        unmixed = -np.matmul(components, mixture_matrix.T)
+        unmixed = -np.matmul(components, mixture_matrix)
         unmixed = -np.flip(unmixed, axis=1)
         self.sources = unmixed
         self.mixture_matrix = mixture_matrix
@@ -111,7 +111,7 @@ class Video_Magnification:
         print("Creating mode shapes and modal coordinates")
         winvmix = np.flip(np.linalg.inv(self.mixture_matrix), axis=0)
         mode_shapes = np.matmul(winvmix, self.eigen_vectors[:, 0:number_components].T).T
-        modal_coordinates = self.sources[:, order]
+        modal_coordinates = -self.sources[:, order]
         mode_shapes = mode_shapes[:, order]
         self.mode_shapes = mode_shapes.astype('float32')
         self.modal_coordinates = modal_coordinates

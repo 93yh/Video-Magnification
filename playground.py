@@ -10,7 +10,7 @@ number_components = 8
 components_order = np.arange(number_components)
 sources_order = np.arange(number_components)
 # modal_coordinates_order = np.array([8, 9, 2, 3, 11, 12])
-modal_coordinates_order = np.array([0, 1, 4, 5, 6, 7])
+modal_coordinates_order = np.array([0, 1, 2, 3, 6, 7])
 
 # set the video object
 video = Video(video_path)
@@ -63,3 +63,9 @@ error, norm = magnification.calculate_error()
 # write in a file to use the same variable on matlab for debugging purposes
 mdic = {"a": sources, "label": "experiment"}
 scipy.io.savemat('sources.mat', mdic)
+mdic = {"a": mixture_matrix, "label": "experiment"}
+scipy.io.savemat('mixture.mat', mdic)
+mdic = {"a": mode_shapes, "label": "experiment"}
+scipy.io.savemat('shapes.mat', mdic)
+mdic = {"a": modal_coordinates, "label": "experiment"}
+scipy.io.savemat('coordinates.mat', mdic)
