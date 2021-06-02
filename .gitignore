@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 .idea
 *.mat
+*.avi
 
 # C extensions
 *.so

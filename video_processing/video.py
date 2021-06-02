@@ -16,7 +16,7 @@ class Video:
         print("Setting video frames")
         video = cv2.VideoCapture(self.video_path)
         self.number_of_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-        print("The video contains %d frames\n" % self.number_of_frames)
+        print("The video contains %d frames, reading...\n" % self.number_of_frames)
         frames = None
         for read in range(self.number_of_frames):
             flag, frame = video.read()
@@ -52,3 +52,31 @@ class Video:
             cv2.imshow('Video', frame)
         video.release()
         cv2.destroyAllWindows()
+
+    def crop_video(self, frame):
+        print("Cropping video\n")
+        # This funtion cuts out all the frames that come before the input frame
+        self.frames = self.frames[frame:]
+        self.gray_frames = self.gray_frames[frame:]
+        self.number_of_frames = self.frames.shape[0]
+
+    def rotate_video_90_degrees(self):
+        print("rotating video\n")
+        gray_frames_shape = self.gray_frames[0].shape
+        new_gray_frames = np.zeros((self.number_of_frames, gray_frames_shape[1], gray_frames_shape[0]))
+        for frame in range(0, self.number_of_frames):
+            frame_gray_to_rotate = np.copy(self.gray_frames[frame])
+            for rotate in range(3):
+                frame_gray_to_rotate = np.rot90(frame_gray_to_rotate)
+            new_gray_frames[frame] = frame_gray_to_rotate
+        self.gray_frames = new_gray_frames
+        self.frames_shape = self.gray_frames[0].shape[0: 2]
+
+    def downsample_frames(self, factor):
+        shape = self.gray_frames[0][0::factor, 0::factor].shape
+        new_gray_frames = np.zeros((self.number_of_frames, shape[0], shape[1]))
+        for frame in range(0, self.number_of_frames):
+            new_gray_frames[frame] = self.gray_frames[frame][0::factor, 0::factor]
+        self.gray_frames = new_gray_frames
+        self.number_of_pixels = self.gray_frames[0].shape[0] * self.gray_frames[0].shape[1]
+        self.frames_shape = self.gray_frames[0].shape[0: factor]

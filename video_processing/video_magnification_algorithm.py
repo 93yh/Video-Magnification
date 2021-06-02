@@ -33,7 +33,6 @@ class Video_Magnification:
         self.modal_coordinates = None
         self.error = None
         self.norm = None
-        self.reconstructed = None
         self.encryption_key = None
 
     def create_time_series(self):
@@ -113,7 +112,7 @@ class Video_Magnification:
         mode_shapes = np.matmul(winvmix, self.eigen_vectors[:, 0:number_components].T).T
         modal_coordinates = -self.sources[:, order]
         mode_shapes = mode_shapes[:, order]
-        self.mode_shapes = mode_shapes.astype('float32')
+        self.mode_shapes = mode_shapes
         self.modal_coordinates = modal_coordinates
         print("Size of mode shapes in bytes: ", self.mode_shapes.nbytes)
         print("Size of modal coordinates in bytes: ", self.modal_coordinates.nbytes, '\n')
@@ -143,49 +142,48 @@ class Video_Magnification:
         columns = len(order)
         plot_mode_shapes_and_modal_coordinates(self, columns, t, do_unscramble)
 
-    def video_reconstruction(self, factor_1=30, factor_2=15, factor_3=5, do_unscramble=False):
-        print("Reconstruting video from mode shapes and modal coordinates\n")
-        frames_0 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
-        frames_1 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
-        frames_2 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
-        frames_3 = np.zeros((self.video.number_of_frames, self.video.frames_shape[0], self.video.frames_shape[1]))
-        source0 = np.matmul(self.modal_coordinates, self.mode_shapes.T)
-        first_part = np.matmul(self.modal_coordinates[:, [0, 1]], self.mode_shapes[:, [0, 1]].T)
-        second_part = np.matmul(self.modal_coordinates[:, [2, 3]], self.mode_shapes[:, [2, 3]].T)
-        third_part = np.matmul(self.modal_coordinates[:, [4, 5]], self.mode_shapes[:, [4, 5]].T)
-        source1 = (factor_1 * first_part) - second_part - third_part
-        source2 = -first_part + (factor_2 * second_part) - third_part
-        source3 = -first_part - second_part + (factor_3 * third_part)
+    def video_reconstruction(self, number_of_modes, factors, do_unscramble=False):
+        print("Reconstruting video from mode shapes and modal coordinates")
+        self.modal_coordinates = -self.modal_coordinates
+        print("Converting matrices to float16")
+        self.modal_coordinates = self.modal_coordinates.astype('float16')
+        self.mode_shapes = self.mode_shapes.astype('float16')
+        self.time_serie_mean = self.time_serie_mean.astype('float16')
+        print("crating mother matrix")
+        heigh = self.video.frames_shape[0]
+        width = self.video.frames_shape[1]
+        mother_matrix = np.zeros((number_of_modes+1, self.video.number_of_frames, heigh, width), dtype="float16")
+        print("Creating parts")
+        parts = np.zeros((number_of_modes, self.video.number_of_frames, self.video.number_of_pixels), dtype="float16")
+        for part in range(0, number_of_modes * 2, 2):
+            print("part: ", part)
+            parts[part//2] = np.matmul(self.modal_coordinates[:, [part, part+1]], self.mode_shapes[:, [part, part+1]].T)
+        print("Creating sources")
+        sources = np.zeros((number_of_modes+1, self.video.number_of_frames, self.video.number_of_pixels), dtype="float16")
+        sources[0] = np.matmul(self.modal_coordinates, self.mode_shapes.T)
+        for source in range(1, number_of_modes+1):
+            sources[source] = parts[source-1] * factors[source-1]
+            for part in range(number_of_modes):
+                if part + 1 != source:
+                    print("subtrating part %d of source %d" % (part, source))
+                    sources[source] -= parts[part]
         if do_unscramble:
             background = self.time_serie_mean[self.encryption_key].reshape(self.video.frames_shape, order="F")
         else:
             background = self.time_serie_mean.reshape(self.video.frames_shape, order="F")
+        print("Creating frames for each mode")
         for row in range(self.video.number_of_frames):
             if not do_unscramble:
-                frame_0 = source0[row, :].reshape(self.video.frames_shape, order="F") + background
-                frame_1 = source1[row, :].reshape(self.video.frames_shape, order="F") + background
-                frame_2 = source2[row, :].reshape(self.video.frames_shape, order="F") + background
-                frame_3 = source3[row, :].reshape(self.video.frames_shape, order="F") + background
+                for source in range(number_of_modes + 1):
+                    mother_matrix[source][row] = sources[source][row, :].reshape(self.video.frames_shape, order="F") + background
             else:
-                frame_0 = source0[row, self.encryption_key].reshape(self.video.frames_shape, order="F") + background
-                frame_1 = source1[row, self.encryption_key].reshape(self.video.frames_shape, order="F") + background
-                frame_2 = source2[row, self.encryption_key].reshape(self.video.frames_shape, order="F") + background
-                frame_3 = source3[row, self.encryption_key].reshape(self.video.frames_shape, order="F") + background
-            frames_0[row] = frame_0
-            frames_1[row] = frame_1
-            frames_2[row] = frame_2
-            frames_3[row] = frame_3
-
-        self.reconstructed = np.copy(frames_0)
-        frames_0[frames_0 > 255] = 255
-        frames_0[frames_0 < 0] = 0
-        frames_1[frames_1 > 255] = 255
-        frames_1[frames_1 < 0] = 0
-        frames_2[frames_2 > 255] = 255
-        frames_2[frames_2 < 0] = 0
-        frames_3[frames_3 > 255] = 255
-        frames_3[frames_3 < 0] = 0
-        return frames_0, frames_1, frames_2, frames_3
+                for source in range(number_of_modes + 1):
+                    mother_matrix[source][row] = sources[source][row, self.encryption_key].reshape(self.video.frames_shape, order="F") + background
+        print("Rescaling frames\n")
+        for time_serie in range(number_of_modes + 1):
+            mother_matrix[time_serie][mother_matrix[time_serie] > 255] = 255
+            mother_matrix[time_serie][mother_matrix[time_serie] < 0] = 0
+        return mother_matrix
 
     def calculate_error(self):
         print('Calculating error and norm between original and reconstructed videos')
@@ -201,10 +199,11 @@ class Video_Magnification:
             frames = self.video.frames
         if fps is None:
             fps = self.video.fps
-        print('Creating video from the frames\n')
-        height, width = self.video.frames_shape
+        print('Creating video from the frames')
+        height, width = frames[0].shape[0:2]
         size = (width, height)
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        print("Creating video with size: ", size)
+        fourcc = cv2.VideoWriter_fourcc(*'MJPG')
         out = cv2.VideoWriter('video_samples/%s.avi' % name, fourcc, fps, size, 0)
         for i in range(len(frames)):
             out.write(frames[i].astype('uint8'))
