@@ -113,7 +113,7 @@ class Video_Magnification:
         modal_coordinates = -self.sources[:, order]
         mode_shapes = mode_shapes[:, order]
         self.mode_shapes = mode_shapes
-        self.modal_coordinates = modal_coordinates
+        self.modal_coordinates = -modal_coordinates
         print("Size of mode shapes in bytes: ", self.mode_shapes.nbytes)
         print("Size of modal coordinates in bytes: ", self.modal_coordinates.nbytes, '\n')
         return self.mode_shapes, self.modal_coordinates
@@ -144,12 +144,11 @@ class Video_Magnification:
 
     def video_reconstruction(self, number_of_modes, factors, do_unscramble=False):
         print("Reconstruting video from mode shapes and modal coordinates")
-        self.modal_coordinates = -self.modal_coordinates
         print("Converting matrices to float16")
         self.modal_coordinates = self.modal_coordinates.astype('float16')
         self.mode_shapes = self.mode_shapes.astype('float16')
         self.time_serie_mean = self.time_serie_mean.astype('float16')
-        print("crating mother matrix")
+        print("creating mother matrix")
         heigh = self.video.frames_shape[0]
         width = self.video.frames_shape[1]
         mother_matrix = np.zeros((number_of_modes+1, self.video.number_of_frames, heigh, width), dtype="float16")

@@ -5,6 +5,7 @@ __pycache__/
 .idea
 *.mat
 *.avi
+*.h5
 
 # C extensions
 *.so
